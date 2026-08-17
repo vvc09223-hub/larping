@@ -16,6 +16,38 @@ public enum LarpGiftStore {
         public var senderName = ""
         public var giftTitle = ""
         public var giftStars: Int64 = 0
+
+        public init(
+            ownerDialogId: Int64 = 0,
+            savedId: Int64 = 0,
+            msgId: Int = 0,
+            giftId: Int64 = 0,
+            slug: String = "",
+            unique: Bool = false,
+            unsaved: Bool = false,
+            resaleStars: Int = 0,
+            resaleTonOnly: Bool = false,
+            date: Int = 0,
+            senderId: Int64 = 0,
+            senderName: String = "",
+            giftTitle: String = "",
+            giftStars: Int64 = 0
+        ) {
+            self.ownerDialogId = ownerDialogId
+            self.savedId = savedId
+            self.msgId = msgId
+            self.giftId = giftId
+            self.slug = slug
+            self.unique = unique
+            self.unsaved = unsaved
+            self.resaleStars = resaleStars
+            self.resaleTonOnly = resaleTonOnly
+            self.date = date
+            self.senderId = senderId
+            self.senderName = senderName
+            self.giftTitle = giftTitle
+            self.giftStars = giftStars
+        }
     }
 
     private static let prefsName = "mg_larp_gifts"

@@ -10,6 +10,26 @@ public enum LarpChannelAdminOverlay {
         public var photoPath = ""
         public var participantsCount = 0
         public var fakeAdmins: [FakeAdmin] = []
+
+        public init(
+            chatId: Int64 = 0,
+            enabled: Bool = false,
+            title: String = "",
+            username: String = "",
+            link: String = "",
+            photoPath: String = "",
+            participantsCount: Int = 0,
+            fakeAdmins: [FakeAdmin] = []
+        ) {
+            self.chatId = chatId
+            self.enabled = enabled
+            self.title = title
+            self.username = username
+            self.link = link
+            self.photoPath = photoPath
+            self.participantsCount = participantsCount
+            self.fakeAdmins = fakeAdmins
+        }
     }
 
     public struct FakeAdmin: Codable, Equatable {
@@ -18,6 +38,20 @@ public enum LarpChannelAdminOverlay {
         public var firstName = ""
         public var lastName = ""
         public var rank = "LARP"
+
+        public init(
+            userId: Int64 = 0,
+            username: String = "",
+            firstName: String = "",
+            lastName: String = "",
+            rank: String = "LARP"
+        ) {
+            self.userId = userId
+            self.username = username
+            self.firstName = firstName
+            self.lastName = lastName
+            self.rank = rank
+        }
     }
 
     private static let storageKey = "mg_larpChannelOverlays"
