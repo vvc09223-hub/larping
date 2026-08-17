@@ -46,6 +46,12 @@ jobs:
           set -euo pipefail
           bash scripts/ci/fetch_external_submodules.sh "$GITHUB_WORKSPACE" master
 
+      - name: Fix shell script permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          find "$GITHUB_WORKSPACE" -type f -name '*.sh' -exec chmod +x {} +
+
       - name: Create canonical source directory
         shell: bash
         run: |
