@@ -110,6 +110,9 @@ then
 		exit 1
 	fi
 
+	find "$SOURCE" -type f \( -name configure -o -name '*.sh' -o -name '*.pl' \) -exec chmod +x {} + 2>/dev/null || true
+	chmod +x "$PKG_CONFIG" "$GAS_PREPROCESSOR_PATH" 2>/dev/null || true
+
 	for RAW_ARCH in $ARCHS
 	do
 		ARCH="$RAW_ARCH"

@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find "$GITHUB_WORKSPACE" -type f \( -name '*.sh' -o -name 'pkg-config' -o -name '*.pl' \) -exec chmod +x {} +
+          bash scripts/ci/fix_executable_bits.sh "$GITHUB_WORKSPACE"
 
       - name: Create canonical source directory
         shell: bash
