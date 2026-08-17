@@ -136,15 +136,32 @@ public enum SGLarpLicenseManager {
         request.timeoutInterval = 20
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        do {
-            let (data, response) = try URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
-                return nil
-            }
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        } catch {
+        guard let (data, response) = performSyncRequest(request) else { return nil }
+        guard (200 ..< 300).contains(response.statusCode) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    private static func performSyncRequest(_ request: URLRequest) -> (Data, HTTPURLResponse)? {
+        var resultData: Data?
+        var resultResponse: HTTPURLResponse?
+        var resultError: Error?
+        let semaphore = DispatchSemaphore(value: 0)
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            resultData = data
+            resultResponse = response as? HTTPURLResponse
+            resultError = error
+            semaphore.signal()
+        }
+        task.resume()
+        let timeout = request.timeoutInterval + 5
+        if semaphore.wait(timeout: .now() + timeout) == .timedOut {
+            task.cancel()
             return nil
         }
+        guard resultError == nil, let data = resultData, let response = resultResponse else {
+            return nil
+        }
+        return (data, response)
     }
 
     private static func request(
@@ -156,7 +173,7 @@ public enum SGLarpLicenseManager {
         DispatchQueue.global(qos: .utility).async {
             var ok = false
             var message = "network_error"
-            var body: [String: Any] = ["key": key, "hwid": hardwareId()]
+            let body: [String: Any] = ["key": key, "hwid": hardwareId()]
             guard let url = URL(string: serverBaseUrl(path)) else {
                 DispatchQueue.main.async { callback?(false, message) }
                 return
@@ -166,16 +183,11 @@ public enum SGLarpLicenseManager {
             request.timeoutInterval = 20
             request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            do {
-                let (data, response) = try URLSession.shared.data(for: request)
-                if let http = response as? HTTPURLResponse,
-                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    ok = json["ok"] as? Bool ?? false
-                    message = json["message"] as? String ?? (ok ? "ok" : "bad_response")
-                    _ = http.statusCode
-                }
-            } catch {
-                message = "network_error"
+            if let (data, response) = performSyncRequest(request),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                ok = json["ok"] as? Bool ?? false
+                message = json["message"] as? String ?? (ok ? "ok" : "bad_response")
+                _ = response.statusCode
             }
             DispatchQueue.main.async {
                 if updateActiveFromResult && path.contains("validate") {
