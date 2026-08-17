@@ -89,19 +89,19 @@ done
 
 if [ "$COMPILE" ]
 then
-	if [ ! `which pkg-config` ]; then
-		echo 'pkg-config not found'
+	if [ ! -x "$PKG_CONFIG" ]; then
+		echo "pkg-config wrapper not found or not executable at $PKG_CONFIG"
 		exit 1
 	else
 		echo "PATH=$PATH"
-		echo "pkg-config=$(which pkg-config)"
+		echo "pkg-config=$PKG_CONFIG"
 	fi
 	IS_LINUX=false
 	for A in $ARCHS; do
 		case "$A" in linux_*) IS_LINUX=true ;; esac
 	done
-	if [ "$IS_LINUX" = "false" ] && [ ! `which "$GAS_PREPROCESSOR_PATH"` ]; then
-		echo '$GAS_PREPROCESSOR_PATH not found.'
+	if [ "$IS_LINUX" = "false" ] && [ ! -x "$GAS_PREPROCESSOR_PATH" ]; then
+		echo "gas-preprocessor not found or not executable at $GAS_PREPROCESSOR_PATH"
 		exit 1
 	fi
 
