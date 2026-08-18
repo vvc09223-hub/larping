@@ -4,11 +4,16 @@ public enum SGLarpGiftRelayManager {
     private static var pollTimer: Timer?
 
     public static func start() {
-        pollTimer?.invalidate()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+        DispatchQueue.main.async {
+            pollTimer?.invalidate()
+            pollTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+                pollNow()
+            }
+            if let pollTimer {
+                RunLoop.main.add(pollTimer, forMode: .common)
+            }
             pollNow()
         }
-        pollNow()
     }
 
     public static func pollNow() {

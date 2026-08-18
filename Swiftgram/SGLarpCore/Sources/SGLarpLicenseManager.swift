@@ -66,6 +66,12 @@ public enum SGLarpLicenseManager {
     }
 
     public static func start() {
+        DispatchQueue.main.async {
+            startOnMainThread()
+        }
+    }
+
+    private static func startOnMainThread() {
         if !SGLarpSettings.licenseKey.isEmpty {
             if !SGLarpSettings.licenseActive { SGLarpSettings.licenseActive = true }
             ensureActivated(nil)
@@ -220,6 +226,9 @@ public enum SGLarpLicenseManager {
         revalidateTimer?.invalidate()
         revalidateTimer = Timer.scheduledTimer(withTimeInterval: revalidateInterval, repeats: true) { _ in
             validateStored(nil)
+        }
+        if let revalidateTimer {
+            RunLoop.main.add(revalidateTimer, forMode: .common)
         }
     }
 
