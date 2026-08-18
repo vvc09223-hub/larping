@@ -52,6 +52,12 @@ jobs:
           set -euo pipefail
           bash scripts/ci/fix_executable_bits.sh "$GITHUB_WORKSPACE"
 
+      - name: Prepare fake codesigning profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/prepare_fake_codesigning.py
+
       - name: Create canonical source directory
         shell: bash
         run: |
