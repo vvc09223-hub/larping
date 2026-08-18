@@ -81,20 +81,15 @@ jobs:
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
-            --buildNumber="$BUILD_NUMBER"
+            --buildNumber="$BUILD_NUMBER" \
+            --outputBuildArtifactsPath=build/artifacts
 
-          OUTPUT_PATH="build/artifacts"
-          rm -rf "$OUTPUT_PATH"
-          mkdir -p "$OUTPUT_PATH"
-
-          shopt -s nullglob
-          ipa_files=(bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa)
-          if [[ ${#ipa_files[@]} -eq 0 ]]; then
-            echo "::error::Telegram.ipa not found under bazel-out"
-            find bazel-out -name '*.ipa' | head -n 20 || true
+          if [[ ! -f build/artifacts/Swiftgram.ipa ]]; then
+            echo "::error::Swiftgram.ipa not found under build/artifacts"
+            find bazel-bin bazel-out -name '*.ipa' | head -n 20 || true
             exit 1
           fi
-          cp "${ipa_files[0]}" "$OUTPUT_PATH/Telegram-Larp.ipa"
+          cp build/artifacts/Swiftgram.ipa build/artifacts/Telegram-Larp.ipa
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
