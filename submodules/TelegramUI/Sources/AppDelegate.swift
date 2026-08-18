@@ -795,6 +795,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         GlobalExperimentalSettings.isAppStoreBuild = buildConfig.isAppStoreBuild
         GlobalExperimentalSettings.enableFeed = false
         
+        if !buildConfig.isAppStoreBuild {
+            hostView.containerView.backgroundColor = UIColor.white
+        }
+        
         self.window?.makeKeyAndVisible()
         
         var hasActiveCalls: Signal<Bool, NoError> = .single(false)
@@ -1376,11 +1380,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.contextValue = context
             if let context = context {
                 setupLegacyComponents(context: context.context)
-                let isReady = context.isReady.get()
-                contextReadyDisposable.set((isReady
-                |> filter { $0 }
-                |> take(1)
-                |> deliverOnMainQueue).start(next: { _ in
+                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false
+                let applyContextUI = {
                     let readyTime = CFAbsoluteTimeGetCurrent() - startTime
                     if readyTime > 0.5 {
                         print("Application: context took \(readyTime) to become ready")
@@ -1392,7 +1393,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     
                     if firstTime {
                         let layer = context.rootController.view.layer
-                        if self.buildConfig?.isInternalBuild == true || self.buildConfig?.isAppStoreBuild == false {
+                        if skipReadyGate || self.buildConfig?.isInternalBuild == true {
                             layer.opacity = 1.0
                         } else {
                             layer.allowsGroupOpacity = true
@@ -1426,8 +1427,18 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                             let _ = await self.fetchSGStatus(primaryContext: primaryContext)
                         }
                     }
-                    
-                }))
+                }
+                if skipReadyGate {
+                    applyContextUI()
+                } else {
+                    let isReady = context.isReady.get()
+                    contextReadyDisposable.set((isReady
+                    |> filter { $0 }
+                    |> take(1)
+                    |> deliverOnMainQueue).start(next: { _ in
+                        applyContextUI()
+                    }))
+                }
             } else {
                 self.mainWindow.viewController = nil
                 self.mainWindow.topLevelOverlayControllers = []
@@ -1470,6 +1481,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.authContextValue = context
             if let context = context {
                 let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
+                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false
                 
                 let progressSignal = Signal<Never, NoError> { [weak self] subscriber in
                     let statusController = OverlayStatusController(theme: presentationData.theme, type: .loading(cancelled: nil))
@@ -1482,16 +1494,35 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 }
                 |> runOn(Queue.mainQueue())
                 |> delay(0.5, queue: Queue.mainQueue())
-                let progressDisposable = progressSignal.start()
+                var progressDisposable: Disposable = EmptyDisposable
+                if !skipReadyGate {
+                    progressDisposable = progressSignal.start()
+                }
                 
-                let isReady: Signal<Bool, NoError> = context.isReady.get()
-                authContextReadyDisposable.set((isReady
-                |> filter { $0 }
-                |> take(1)
-                |> deliverOnMainQueue).start(next: { _ in
+                let applyAuthUI = {
                     progressDisposable.dispose()
-                    self.mainWindow.present(context.rootController, on: .root)
-                }))
+                    self.mainWindow.viewController = context.rootController
+                    context.rootController.view.layer.opacity = 1.0
+                }
+                
+                if skipReadyGate {
+                    applyAuthUI()
+                } else {
+                    let isReady: Signal<Bool, NoError> = context.isReady.get()
+                    authContextReadyDisposable.set((isReady
+                    |> filter { $0 }
+                    |> take(1)
+                    |> deliverOnMainQueue).start(next: { _ in
+                        applyAuthUI()
+                    }))
+                }
+                
+                Queue.mainQueue().after(5.0) { [weak self] in
+                    guard let self, self.mainWindow.viewController == nil else {
+                        return
+                    }
+                    applyAuthUI()
+                }
             } else {
                 authContextReadyDisposable.set(nil)
             }
@@ -1501,6 +1532,22 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // MARK: Swiftgram
         if #available(iOS 13.0, *) {
             self.setupIAP()
+        }
+        
+        if !buildConfig.isAppStoreBuild {
+            Queue.mainQueue().after(8.0) { [weak self] in
+                guard let self, self.mainWindow.viewController == nil else {
+                    return
+                }
+                if let context = self.contextValue {
+                    self.mainWindow.viewController = context.rootController
+                    context.rootController.view.layer.opacity = 1.0
+                } else if let auth = self.authContextValue {
+                    self.mainWindow.viewController = auth.rootController
+                    auth.rootController.view.layer.opacity = 1.0
+                }
+                self.window?.makeKeyAndVisible()
+            }
         }
 
 
