@@ -65,7 +65,10 @@ final class UnauthorizedApplicationContext {
             self?.authorizationCompleted = true
         }
         
-        self.isReady.set(self.rootController.ready.get())
+        self.isReady.set(
+            self.rootController.ready.get()
+            |> timeout(20.0, queue: .mainQueue(), alternate: .single(true))
+        )
         
         account.shouldBeServiceTaskMaster.set(sharedContext.applicationBindings.applicationInForeground |> map { value -> AccountServiceTaskMasterMode in
             if value {
@@ -264,6 +267,7 @@ final class AuthorizedApplicationContext {
             |> map { $0 && $1 }
             |> filter { $0 }
             |> take(1)
+            |> timeout(20.0, queue: .mainQueue(), alternate: .single(true))
             self.isReady.set(combinedReady)
         } else {
             self.isReady.set(.single(true))
