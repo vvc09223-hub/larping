@@ -98,6 +98,29 @@ final class UnauthorizedApplicationContext {
                 (strongSelf.rootController.viewControllers.last as? ViewController)?.present(alertController, in: .window(.root))
             }
         })
+        
+        self.scheduleAuthUIBootstrap()
+    }
+    
+    private func scheduleAuthUIBootstrap() {
+        for delay in [0.5, 2.0, 5.0] {
+            Queue.mainQueue().after(delay) { [weak self] in
+                self?.bootstrapAuthUIIfNeeded()
+            }
+        }
+    }
+    
+    private func bootstrapAuthUIIfNeeded() {
+        guard self.rootController.viewControllers.isEmpty else {
+            return
+        }
+        let engine = TelegramEngineUnauthorized(account: self.account)
+        let countryCode = AuthorizationSequenceCountrySelectionController.defaultCountryCode()
+        let _ = engine.auth.setState(state: UnauthorizedAccountState(
+            isTestingEnvironment: self.account.testingEnvironment,
+            masterDatacenterId: self.account.masterDatacenterId,
+            contents: .phoneEntry(countryCode: countryCode, number: "")
+        )).start()
     }
 
     deinit {

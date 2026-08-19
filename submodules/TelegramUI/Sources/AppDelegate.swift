@@ -410,20 +410,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
         self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
-        if let traitCollection = window.rootViewController?.traitCollection {
-            if #available(iOS 13.0, *) {
-                switch traitCollection.userInterfaceStyle {
-                case .light, .unspecified:
-                    hostView.containerView.backgroundColor = UIColor.white
-                default:
-                    hostView.containerView.backgroundColor = UIColor.black
-                }
-            } else {
-                hostView.containerView.backgroundColor = UIColor.white
-            }
-        } else {
-            hostView.containerView.backgroundColor = UIColor.white
-        }
+        hostView.containerView.backgroundColor = UIColor.white
         self.window = window
         self.nativeWindow = window
         // MARK: Swiftgram
@@ -1389,7 +1376,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     print("Launch to ready took \((CFAbsoluteTimeGetCurrent() - launchStartTime) * 1000.0) ms")
 
                     self.mainWindow.debugAction = nil
-                    self.mainWindow.viewController = context.rootController
+                    self.attachRootController(context.rootController)
                     
                     if firstTime {
                         let layer = context.rootController.view.layer
@@ -1501,8 +1488,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 
                 let applyAuthUI = {
                     progressDisposable.dispose()
-                    self.mainWindow.viewController = context.rootController
-                    context.rootController.view.layer.opacity = 1.0
+                    self.bootstrapAuthUIIfNeeded(context)
+                    self.attachRootController(context.rootController)
                 }
                 
                 if skipReadyGate {
@@ -1518,7 +1505,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 }
                 
                 Queue.mainQueue().after(5.0) { [weak self] in
-                    guard let self, self.mainWindow.viewController == nil else {
+                    guard let self, self.rootUINeedsRecovery() else {
                         return
                     }
                     applyAuthUI()
@@ -1535,18 +1522,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         
         if !buildConfig.isAppStoreBuild {
-            Queue.mainQueue().after(8.0) { [weak self] in
-                guard let self, self.mainWindow.viewController == nil else {
-                    return
+            for delay in [2.0, 5.0, 10.0] {
+                Queue.mainQueue().after(delay) { [weak self] in
+                    self?.recoverRootUIIfNeeded()
                 }
-                if let context = self.contextValue {
-                    self.mainWindow.viewController = context.rootController
-                    context.rootController.view.layer.opacity = 1.0
-                } else if let auth = self.authContextValue {
-                    self.mainWindow.viewController = auth.rootController
-                    auth.rootController.view.layer.opacity = 1.0
-                }
-                self.window?.makeKeyAndVisible()
             }
         }
 
@@ -3274,6 +3253,49 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 })
             }
         }).start()
+    }
+    
+    private func attachRootController(_ controller: ContainableController) {
+        self.mainWindow.hostView.containerView.backgroundColor = UIColor.white
+        self.mainWindow.viewController = controller
+        controller.view.layer.opacity = 1.0
+        self.window?.makeKeyAndVisible()
+    }
+    
+    private func bootstrapAuthUIIfNeeded(_ context: UnauthorizedApplicationContext) {
+        guard context.rootController.viewControllers.isEmpty else {
+            return
+        }
+        let engine = TelegramEngineUnauthorized(account: context.account)
+        let countryCode = AuthorizationSequenceCountrySelectionController.defaultCountryCode()
+        let _ = engine.auth.setState(state: UnauthorizedAccountState(
+            isTestingEnvironment: context.account.testingEnvironment,
+            masterDatacenterId: context.account.masterDatacenterId,
+            contents: .phoneEntry(countryCode: countryCode, number: "")
+        )).start()
+    }
+    
+    private func rootUINeedsRecovery() -> Bool {
+        if self.mainWindow.viewController == nil {
+            return true
+        }
+        if let auth = self.authContextValue,
+           self.mainWindow.viewController === auth.rootController,
+           auth.rootController.viewControllers.isEmpty {
+            return true
+        }
+        return false
+    }
+    
+    private func recoverRootUIIfNeeded() {
+        if let auth = self.authContextValue, self.contextValue == nil {
+            self.bootstrapAuthUIIfNeeded(auth)
+            self.attachRootController(auth.rootController)
+            return
+        }
+        if let context = self.contextValue {
+            self.attachRootController(context.rootController)
+        }
     }
 }
 
