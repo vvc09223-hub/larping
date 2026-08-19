@@ -115,7 +115,7 @@ final class UnauthorizedApplicationContext {
             return
         }
         let engine = TelegramEngineUnauthorized(account: self.account)
-        let countryCode = AuthorizationSequenceCountrySelectionController.defaultCountryCode()
+        let countryCode = AuthorizationSequenceController.defaultCountryCode()
         let _ = engine.auth.setState(state: UnauthorizedAccountState(
             isTestingEnvironment: self.account.testingEnvironment,
             masterDatacenterId: self.account.masterDatacenterId,

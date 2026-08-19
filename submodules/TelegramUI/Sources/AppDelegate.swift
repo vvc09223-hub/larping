@@ -3267,7 +3267,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             return
         }
         let engine = TelegramEngineUnauthorized(account: context.account)
-        let countryCode = AuthorizationSequenceCountrySelectionController.defaultCountryCode()
+        let countryCode = AuthorizationSequenceController.defaultCountryCode()
         let _ = engine.auth.setState(state: UnauthorizedAccountState(
             isTestingEnvironment: context.account.testingEnvironment,
             masterDatacenterId: context.account.masterDatacenterId,
