@@ -35,7 +35,7 @@ public final class LarpFunctionsViewController: ViewController {
         super.init(navigationBarPresentationData: nil)
         self.title = "LarpGram Functions"
         let peerId = Int64(context.account.peerId.id._internalGetInt64Value())
-        UserDefaults.standard.set(peerId, forKey: "mg_larp_self_user_id")
+        SGLarpSelfUserId.set(peerId)
         LarpProfileRelay.setSelfUserId(peerId)
     }
 

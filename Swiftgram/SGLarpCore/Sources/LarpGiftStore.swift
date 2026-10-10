@@ -83,7 +83,7 @@ public enum LarpGiftStore {
 
     public static func publishInventoryToServer(userId: Int64? = nil) {
         guard SGLarpLicenseManager.isActive(), SGLarpLicenseManager.larpGiftsEnabled() else { return }
-        let ownerId = userId ?? Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let ownerId = userId ?? SGLarpSelfUserId.get()
         guard ownerId > 0 else { return }
         let items: [[String: Any]] = forOwner(ownerId).map { e in
             [
@@ -110,7 +110,7 @@ public enum LarpGiftStore {
 
     public static func fetchInventoryFromServer(userId: Int64? = nil) {
         guard SGLarpLicenseManager.isActive(), SGLarpLicenseManager.larpGiftsEnabled() else { return }
-        let ownerId = userId ?? Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let ownerId = userId ?? SGLarpSelfUserId.get()
         guard ownerId > 0 else { return }
         let body: [String: Any] = [
             "key": SGLarpLicenseManager.getRelayKey(),

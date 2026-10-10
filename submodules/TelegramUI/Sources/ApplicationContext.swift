@@ -199,7 +199,7 @@ final class AuthorizedApplicationContext {
         
         let larpSelfUserId = Int64(context.account.peerId.id._internalGetInt64Value())
         if larpSelfUserId > 0 {
-            UserDefaults.standard.set(larpSelfUserId, forKey: "mg_larp_self_user_id")
+            SGLarpSelfUserId.set(larpSelfUserId)
             LarpProfileRelay.setSelfUserId(larpSelfUserId)
         }
         

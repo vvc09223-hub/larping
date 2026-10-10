@@ -80,7 +80,7 @@ public enum LarpChannelAdminOverlay {
     public static func canLarpManage(chatId: Int64, isCreator: Bool) -> Bool {
         if isCreator { return true }
         guard let overlay = get(chatId: chatId), overlay.enabled else { return false }
-        let selfId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let selfId = SGLarpSelfUserId.get()
         return overlay.fakeAdmins.contains { $0.userId == selfId }
     }
 

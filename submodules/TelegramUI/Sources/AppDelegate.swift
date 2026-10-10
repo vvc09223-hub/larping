@@ -646,21 +646,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        let appGroupUrl: URL
-        if let groupUrl = maybeAppGroupUrl {
-            appGroupUrl = groupUrl
-        } else {
-            let fallbackDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                .appendingPathComponent("telelarp-shared-data", isDirectory: true)
-            do {
-                try FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
-            } catch {
-                let message = "App Group unavailable (Error 2).\nExpected: \(appGroupName)\nCould not create fallback storage.\nReinstall the IPA with matching entitlements / provisioning profile."
-                self.presentStartupFailure(message: message)
-                return true
-            }
-            appGroupUrl = fallbackDir
-            Logger.shared.log("App \(self.episodeId)", "App Group missing (\(appGroupName)); using sandbox fallback at \(fallbackDir.path)")
+        guard let appGroupUrl = self.resolveSharedContainerURL(appGroupName: appGroupName, preferredGroupUrl: maybeAppGroupUrl) else {
+            let message = "App Group unavailable (Error 2).\nExpected: \(appGroupName)\nCould not create fallback storage.\nReinstall the IPA with matching entitlements / provisioning profile."
+            self.presentStartupFailure(message: message)
+            return true
         }
         
         var isDebugConfiguration = false
@@ -3267,6 +3256,37 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }).start()
     }
     
+    /// Keep the same data root across launches (App Group vs sandbox fallback must not flip).
+    private func resolveSharedContainerURL(appGroupName: String, preferredGroupUrl: URL?) -> URL? {
+        let pinnedKey = "telelarp_pinned_container_path"
+        if let pinnedPath = UserDefaults.standard.string(forKey: pinnedKey), !pinnedPath.isEmpty {
+            let pinnedUrl = URL(fileURLWithPath: pinnedPath, isDirectory: true)
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: pinnedUrl.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                return pinnedUrl
+            }
+        }
+        if let groupUrl = preferredGroupUrl {
+            UserDefaults.standard.set(groupUrl.path, forKey: pinnedKey)
+            return groupUrl
+        }
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        guard let base else {
+            return nil
+        }
+        let fallbackDir = base.appendingPathComponent("telelarp-shared-data", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
+        } catch {
+            Logger.shared.log("App \(self.episodeId)", "Fallback container create failed: \(error)")
+            return nil
+        }
+        UserDefaults.standard.set(fallbackDir.path, forKey: pinnedKey)
+        Logger.shared.log("App \(self.episodeId)", "App Group missing (\(appGroupName)); pinned sandbox fallback at \(fallbackDir.path)")
+        return fallbackDir
+    }
+
     private func attachRootController(_ controller: ContainableController) {
         self.mainWindow.hostView.containerView.backgroundColor = UIColor.white
         self.mainWindow.viewController = controller

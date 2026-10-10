@@ -30,7 +30,7 @@ public enum SGLarpGiftRelayManager {
 
     public static func pollNow() {
         guard SGLarpLicenseManager.giftRelayEnabled() else { return }
-        let userId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let userId = SGLarpSelfUserId.get()
         guard userId > 0 else { return }
         let body: [String: Any] = [
             "key": SGLarpLicenseManager.getRelayKey(),
@@ -57,7 +57,7 @@ public enum SGLarpGiftRelayManager {
 
     private static func publishPresence() {
         guard SGLarpLicenseManager.giftRelayEnabled() else { return }
-        let userId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let userId = SGLarpSelfUserId.get()
         guard userId > 0 else { return }
         let body: [String: Any] = [
             "key": SGLarpLicenseManager.getRelayKey(),
@@ -70,7 +70,7 @@ public enum SGLarpGiftRelayManager {
 
     public static func sendGift(toUserId: Int64, savedId: Int64) {
         guard SGLarpLicenseManager.giftRelayEnabled(), toUserId > 0, savedId != 0 else { return }
-        let fromUserId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        let fromUserId = SGLarpSelfUserId.get()
         let body: [String: Any] = [
             "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),

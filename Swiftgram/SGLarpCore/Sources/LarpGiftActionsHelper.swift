@@ -29,6 +29,6 @@ public enum LarpGiftActionsHelper {
     }
 
     private static func currentOwnerId() -> Int64 {
-        Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        SGLarpSelfUserId.get()
     }
 }
