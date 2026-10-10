@@ -646,10 +646,21 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            let message = "App Group unavailable (Error 2).\nExpected: \(appGroupName)\nReinstall the IPA with matching entitlements / provisioning profile."
-            self.presentStartupFailure(message: message)
-            return true
+        let appGroupUrl: URL
+        if let groupUrl = maybeAppGroupUrl {
+            appGroupUrl = groupUrl
+        } else {
+            let fallbackDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("telelarp-shared-data", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
+            } catch {
+                let message = "App Group unavailable (Error 2).\nExpected: \(appGroupName)\nCould not create fallback storage.\nReinstall the IPA with matching entitlements / provisioning profile."
+                self.presentStartupFailure(message: message)
+                return true
+            }
+            appGroupUrl = fallbackDir
+            Logger.shared.log("App \(self.episodeId)", "App Group missing (\(appGroupName)); using sandbox fallback at \(fallbackDir.path)")
         }
         
         var isDebugConfiguration = false
