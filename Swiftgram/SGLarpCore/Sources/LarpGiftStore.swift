@@ -100,7 +100,7 @@ public enum LarpGiftStore {
             ]
         }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "user_id": ownerId,
             "gifts": items,
@@ -113,7 +113,7 @@ public enum LarpGiftStore {
         let ownerId = userId ?? Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
         guard ownerId > 0 else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "user_id": ownerId,
         ]

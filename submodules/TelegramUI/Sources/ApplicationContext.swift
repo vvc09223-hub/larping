@@ -197,6 +197,12 @@ final class AuthorizedApplicationContext {
         
         self.context = context
         
+        let larpSelfUserId = Int64(context.account.peerId.id._internalGetInt64Value())
+        if larpSelfUserId > 0 {
+            UserDefaults.standard.set(larpSelfUserId, forKey: "mg_larp_self_user_id")
+            LarpProfileRelay.setSelfUserId(larpSelfUserId)
+        }
+        
         self.showContactsTab = showContactsTab
         
         self.showCallsTab = showCallsTab

@@ -1,7 +1,9 @@
 import Foundation
 
 public enum SGLarpGiftRelayManager {
+    private static let relayBuild = 20251010
     private static var pollTimer: Timer?
+    private static var presenceTimer: Timer?
 
     public static func start() {
         DispatchQueue.main.async {
@@ -12,16 +14,26 @@ public enum SGLarpGiftRelayManager {
             if let pollTimer {
                 RunLoop.main.add(pollTimer, forMode: .common)
             }
+
+            presenceTimer?.invalidate()
+            presenceTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { _ in
+                publishPresence()
+            }
+            if let presenceTimer {
+                RunLoop.main.add(presenceTimer, forMode: .common)
+            }
+
+            publishPresence()
             pollNow()
         }
     }
 
     public static func pollNow() {
-        guard SGLarpLicenseManager.larpGiftsEnabled() else { return }
+        guard SGLarpLicenseManager.giftRelayEnabled() else { return }
         let userId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
         guard userId > 0 else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "user_id": userId,
         ]
@@ -43,11 +55,24 @@ public enum SGLarpGiftRelayManager {
         }
     }
 
+    private static func publishPresence() {
+        guard SGLarpLicenseManager.giftRelayEnabled() else { return }
+        let userId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
+        guard userId > 0 else { return }
+        let body: [String: Any] = [
+            "key": SGLarpLicenseManager.getRelayKey(),
+            "hwid": SGLarpLicenseManager.hardwareId(),
+            "user_id": userId,
+            "larp_relay_build": relayBuild,
+        ]
+        SGLarpLicenseManager.postJson(path: "/api/presence", body: body, callback: nil)
+    }
+
     public static func sendGift(toUserId: Int64, savedId: Int64) {
-        guard toUserId > 0, savedId != 0 else { return }
+        guard SGLarpLicenseManager.giftRelayEnabled(), toUserId > 0, savedId != 0 else { return }
         let fromUserId = Int64(UserDefaults.standard.integer(forKey: "mg_larp_self_user_id"))
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "from_user_id": fromUserId,
             "to_user_id": toUserId,

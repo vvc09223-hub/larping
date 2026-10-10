@@ -13,7 +13,7 @@ public enum LarpChannelRelay {
     public static func publish(chatId: Int64) {
         guard SGLarpLicenseManager.isActive(), let overlay = LarpChannelAdminOverlay.get(chatId: chatId) else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "channel_id": chatId,
             "enabled": overlay.enabled,
@@ -36,7 +36,7 @@ public enum LarpChannelRelay {
     public static func fetch(chatId: Int64) {
         guard SGLarpLicenseManager.isActive(), chatId != 0 else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "channel_id": chatId,
         ]

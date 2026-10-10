@@ -22,7 +22,13 @@ public enum SGLarpSettings {
     }
 
     public static var visualMenu: Bool {
-        get { defaults.bool(forKey: "mg_larpVisualMenu") || licenseDefaults.bool(forKey: "visual") }
+        get {
+            if defaults.object(forKey: "mg_larpVisualMenu") == nil
+                && licenseDefaults.object(forKey: "visual") == nil {
+                return true
+            }
+            return defaults.bool(forKey: "mg_larpVisualMenu") || licenseDefaults.bool(forKey: "visual")
+        }
         set {
             defaults.set(newValue, forKey: "mg_larpVisualMenu")
             licenseDefaults.set(newValue, forKey: "visual")
@@ -31,7 +37,13 @@ public enum SGLarpSettings {
     }
 
     public static var fakeGifts: Bool {
-        get { defaults.bool(forKey: "mg_larpFakeGifts") || licenseDefaults.bool(forKey: "gifts") }
+        get {
+            if defaults.object(forKey: "mg_larpFakeGifts") == nil
+                && licenseDefaults.object(forKey: "gifts") == nil {
+                return true
+            }
+            return defaults.bool(forKey: "mg_larpFakeGifts") || licenseDefaults.bool(forKey: "gifts")
+        }
         set {
             defaults.set(newValue, forKey: "mg_larpFakeGifts")
             licenseDefaults.set(newValue, forKey: "gifts")

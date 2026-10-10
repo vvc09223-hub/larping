@@ -647,7 +647,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         )
         
         guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
+            let message = "App Group unavailable (Error 2).\nExpected: \(appGroupName)\nReinstall the IPA with matching entitlements / provisioning profile."
+            self.presentStartupFailure(message: message)
             return true
         }
         
@@ -1367,7 +1368,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.contextValue = context
             if let context = context {
                 setupLegacyComponents(context: context.context)
-                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false
+                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false || self.buildConfig?.isInternalBuild == true
                 let applyContextUI = {
                     let readyTime = CFAbsoluteTimeGetCurrent() - startTime
                     if readyTime > 0.5 {
@@ -1380,13 +1381,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     
                     if firstTime {
                         let layer = context.rootController.view.layer
-                        if skipReadyGate || self.buildConfig?.isInternalBuild == true {
-                            layer.opacity = 1.0
-                        } else {
+                        layer.allowsGroupOpacity = false
+                        layer.opacity = 1.0
+                        if !skipReadyGate {
+                            layer.opacity = 0.0
                             layer.allowsGroupOpacity = true
                             layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2, completion: { [weak layer] _ in
                                 if let layer = layer {
                                     layer.allowsGroupOpacity = false
+                                    layer.opacity = 1.0
                                 }
                             })
                         }
@@ -1468,7 +1471,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.authContextValue = context
             if let context = context {
                 let presentationData = context.sharedContext.currentPresentationData.with({ $0 })
-                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false
+                let skipReadyGate = self.buildConfig?.isAppStoreBuild == false || self.buildConfig?.isInternalBuild == true
                 
                 let progressSignal = Signal<Never, NoError> { [weak self] subscriber in
                     let statusController = OverlayStatusController(theme: presentationData.theme, type: .loading(cancelled: nil))
@@ -1521,11 +1524,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.setupIAP()
         }
         
-        if !buildConfig.isAppStoreBuild {
-            for delay in [2.0, 5.0, 10.0] {
-                Queue.mainQueue().after(delay) { [weak self] in
-                    self?.recoverRootUIIfNeeded()
-                }
+        for delay in [0.75, 2.0, 5.0, 10.0] {
+            Queue.mainQueue().after(delay) { [weak self] in
+                self?.recoverRootUIIfNeeded()
             }
         }
 
@@ -3258,8 +3259,30 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private func attachRootController(_ controller: ContainableController) {
         self.mainWindow.hostView.containerView.backgroundColor = UIColor.white
         self.mainWindow.viewController = controller
+        controller.view.layer.allowsGroupOpacity = false
         controller.view.layer.opacity = 1.0
         self.window?.makeKeyAndVisible()
+    }
+    
+    private func presentStartupFailure(message: String) {
+        self.window?.makeKeyAndVisible()
+        let controller = UIViewController()
+        controller.view.backgroundColor = UIColor.systemBackground
+        let label = UILabel()
+        label.text = message
+        label.textColor = UIColor.label
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.font = UIFont.systemFont(ofSize: 15, weight: .medium)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
+            label.trailingAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
+            label.centerYAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.centerYAnchor),
+        ])
+        self.window?.rootViewController = controller
+        self.mainWindow?.presentNative(UIAlertController(title: "Startup failed", message: message, preferredStyle: .alert))
     }
     
     private func bootstrapAuthUIIfNeeded(_ context: UnauthorizedApplicationContext) {
@@ -3277,6 +3300,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     
     private func rootUINeedsRecovery() -> Bool {
         if self.mainWindow.viewController == nil {
+            return true
+        }
+        if let layer = self.mainWindow.viewController?.view.layer,
+           layer.opacity < 0.05 {
             return true
         }
         if let auth = self.authContextValue,

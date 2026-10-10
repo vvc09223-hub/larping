@@ -25,7 +25,7 @@ public enum LarpProfileRelay {
         let uid = userId ?? selfUserId
         guard uid > 0 else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "user_id": uid,
             "usernames": filterActiveUsernames(SGLarpSettings.fakeFragmentUsernames),
@@ -49,7 +49,7 @@ public enum LarpProfileRelay {
     public static func fetch(targetUserId: Int64) {
         guard SGLarpLicenseManager.isActive(), targetUserId > 0, targetUserId != selfUserId else { return }
         let body: [String: Any] = [
-            "key": SGLarpSettings.licenseKey,
+            "key": SGLarpLicenseManager.getRelayKey(),
             "hwid": SGLarpLicenseManager.hardwareId(),
             "target_user_id": targetUserId,
         ]

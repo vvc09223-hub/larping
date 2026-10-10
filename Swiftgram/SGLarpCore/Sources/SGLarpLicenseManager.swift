@@ -7,6 +7,9 @@ import UIKit
 public enum SGLarpLicenseManager {
     public static let defaultServerHost = "2.26.48.141"
     public static let serverPort = 1048
+    /// Same as Android `LicenseManager.LICENSE_DISABLED` — relay without per-user license key.
+    public static let licenseDisabled = true
+    private static let relaySharedKey = "LARP-RELAY-MOBILE"
 
     public typealias ResultCallback = (Bool, String) -> Void
     public typealias JsonCallback = ([String: Any]?, String?) -> Void
@@ -44,7 +47,26 @@ public enum SGLarpLicenseManager {
     }
 
     public static func isActive() -> Bool {
-        SGLarpSettings.licenseActive && !SGLarpSettings.licenseKey.isEmpty
+        if licenseDisabled {
+            return true
+        }
+        return SGLarpSettings.licenseActive && !SGLarpSettings.licenseKey.isEmpty
+    }
+
+    public static func getRelayKey() -> String {
+        let trimmed = SGLarpSettings.licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        return relaySharedKey
+    }
+
+    public static func giftRelayEnabled() -> Bool {
+        guard isActive() else { return false }
+        if licenseDisabled {
+            return SGLarpSettings.visualMenu
+        }
+        return larpGiftsEnabled() || (SGLarpSettings.licenseActive && !SGLarpSettings.licenseKey.isEmpty)
     }
 
     public static func larpGiftsEnabled() -> Bool {
@@ -72,11 +94,15 @@ public enum SGLarpLicenseManager {
     }
 
     private static func startOnMainThread() {
-        if !SGLarpSettings.licenseKey.isEmpty {
+        if licenseDisabled {
+            if !SGLarpSettings.licenseActive {
+                SGLarpSettings.licenseActive = true
+            }
+        } else if !SGLarpSettings.licenseKey.isEmpty {
             if !SGLarpSettings.licenseActive { SGLarpSettings.licenseActive = true }
             ensureActivated(nil)
+            scheduleRevalidate()
         }
-        scheduleRevalidate()
         SGLarpGiftRelayManager.start()
         LarpTransactionHelper.mergeStored(ton: false)
         LarpTransactionHelper.mergeStored(ton: true)
