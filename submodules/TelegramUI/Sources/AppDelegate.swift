@@ -1491,6 +1491,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 
                 let applyAuthUI = {
                     progressDisposable.dispose()
+                    guard !context.authorizationCompleted else {
+                        return
+                    }
                     self.bootstrapAuthUIIfNeeded(context)
                     self.attachRootController(context.rootController)
                 }
