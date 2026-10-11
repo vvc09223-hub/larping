@@ -290,18 +290,28 @@ final class AuthorizedApplicationContext {
         if self.rootController.rootTabController == nil {
             self.rootController.addRootControllers(hidePhoneInSettings: SGSimpleSettings.shared.hidePhoneInSettings, showContactsTab: self.showContactsTab, showCallsTab: self.showCallsTab)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            SGLarpLicenseManager.start()
-        }
-        if let tabsController = self.rootController.viewControllers.first as? TabBarController, !tabsController.controllers.isEmpty, tabsController.selectedIndex >= 0 {
-            let controller = tabsController.controllers[tabsController.selectedIndex]
-            let combinedReady = combineLatest(tabsController.ready.get(), controller.ready.get())
-            |> map { $0 && $1 }
-            |> timeout(5.0, queue: .mainQueue(), alternate: .single(true))
-            |> take(1)
-            self.isReady.set(combinedReady)
+        if let tabsController = self.rootController.viewControllers.first as? TabBarController, !tabsController.controllers.isEmpty {
+            let selectedIndex = tabsController.selectedIndex
+            if selectedIndex >= 0, selectedIndex < tabsController.controllers.count {
+                let controller = tabsController.controllers[selectedIndex]
+                let combinedReady = combineLatest(tabsController.ready.get(), controller.ready.get())
+                |> map { $0 && $1 }
+                |> timeout(5.0, queue: .mainQueue(), alternate: .single(true))
+                |> take(1)
+                self.isReady.set(combinedReady)
+            } else {
+                self.isReady.set(.single(true))
+            }
         } else {
             self.isReady.set(.single(true))
+        }
+        
+        if larpSelfUserId > 0 {
+            let _ = (self.isReady.get()
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { _ in
+                SGLarpLicenseManager.start()
+            })
         }
         
         let accountId = context.account.id

@@ -103,14 +103,15 @@ public enum SGLarpLicenseManager {
             ensureActivated(nil)
             scheduleRevalidate()
         }
-        SGLarpGiftRelayManager.start()
+        LarpBadgeIcons.preload()
+        LarpProfileRelay.applySelfUsernames()
+        LarpPersonalChannel.apply()
         LarpTransactionHelper.mergeStored(ton: false)
         LarpTransactionHelper.mergeStored(ton: true)
-        LarpGiftStore.fetchInventoryFromServer()
         LarpGiftsInjector.syncAll()
-        LarpPersonalChannel.apply()
-        LarpProfileRelay.applySelfUsernames()
-        LarpBadgeIcons.preload()
+        guard SGLarpSelfUserId.get() > 0 else { return }
+        SGLarpGiftRelayManager.start()
+        LarpGiftStore.fetchInventoryFromServer()
     }
 
     public static func activate(key: String, callback: ResultCallback?) {
