@@ -85,6 +85,7 @@ xcode-files
 .sourcekit-lsp/**
 /.claude/
 **/.claude/settings.local.json
+.github-token.local
 **/.vscode/launch.json
 /buildbox/*
 **/node_modules/
