@@ -14,6 +14,7 @@ public class SGLocalizationManager {
     private let appBundle: Bundle
     private var localizations: [String: [String: String]] = [:]
     private var webLocalizations: [String: [String: String]] = [:]
+    private let loadLock = NSLock()
     private let fallbackMappings: [String: String] = [
         // "from": "to"
         "zh-hant": "zh-hans",
@@ -25,12 +26,6 @@ public class SGLocalizationManager {
     
     private init() {
         self.appBundle = getAppBundle()
-        // Iterating over all the app languages and loading SGLocalizable.strings
-        self.appBundle.localizations.forEach { locale in
-            if locale != "Base" {
-                localizations[locale] = loadLocalDictionary(for: locale)
-            }
-        }
     }
     
     public func localizedString(_ key: String, _ locale: String = SGFallbackLocale, args: CVarArg...) -> String {
@@ -38,7 +33,7 @@ public class SGLocalizationManager {
         
         if let localizedString = findLocalizedString(forKey: key, inLocale: sanitizedLocale) {
             if args.isEmpty {
-                return String(format: localizedString)
+                return localizedString
             } else {
                 return String(format: localizedString, arguments: args)
             }
@@ -48,18 +43,31 @@ public class SGLocalizationManager {
         return key
     }
     
-    private func loadLocalDictionary(for locale: String) -> [String: String] {
-        guard let path = self.appBundle.path(forResource: "SGLocalizable", ofType: "strings", inDirectory: nil, forLocalization: locale) else {
-            // SGLogger.shared.log("Localization", "Unable to find path for locale: \(locale)")
+    private func cachedLocalDictionary(for locale: String) -> [String: String] {
+        loadLock.lock()
+        if let cached = localizations[locale] {
+            loadLock.unlock()
+            return cached
+        }
+        loadLock.unlock()
+
+        let loaded = Self.loadStringsFile(from: appBundle, locale: locale)
+
+        loadLock.lock()
+        localizations[locale] = loaded
+        loadLock.unlock()
+        return loaded
+    }
+
+    private static func loadStringsFile(from bundle: Bundle, locale: String) -> [String: String] {
+        guard let path = bundle.path(forResource: "SGLocalizable", ofType: "strings", inDirectory: nil, forLocalization: locale) else {
             return [:]
         }
-
-        guard let dictionary = NSDictionary(contentsOf: URL(fileURLWithPath: path)) as? [String: String] else {
-            // SGLogger.shared.log("Localization", "Unable to load dictionary for locale: \(locale)")
+        let url = URL(fileURLWithPath: path)
+        guard let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else {
             return [:]
         }
-
-        return dictionary
+        return parseStringsPlist(data) ?? [:]
     }
     
     public func downloadLocale(_ locale: String) {
@@ -90,7 +98,9 @@ public class SGLocalizationManager {
                 return
             }
             DispatchQueue.main.async {
+                self.loadLock.lock()
                 self.webLocalizations[sanitizedLocale] = localeDict
+                self.loadLock.unlock()
                 SGLogger.shared.log("Strings", "Successfully downloaded locale \(sanitizedLocale)")
             }
         }.resume()
@@ -127,16 +137,21 @@ public class SGLocalizationManager {
     }
 
     private func findLocalizedString(forKey key: String, inLocale locale: String) -> String? {
-        if let string = self.webLocalizations[locale]?[key], !string.isEmpty {
-            return string
+        loadLock.lock()
+        let web = webLocalizations[locale]?[key]
+        loadLock.unlock()
+        if let web, !web.isEmpty {
+            return web
         }
-        if let string = self.localizations[locale]?[key], !string.isEmpty {
+
+        let bundleStrings = cachedLocalDictionary(for: locale)
+        if let string = bundleStrings[key], !string.isEmpty {
             return string
         }
         if let fallbackLocale = self.fallbackMappings[locale] {
             return self.findLocalizedString(forKey: key, inLocale: fallbackLocale)
         }
-        return self.localizations[SGFallbackLocale]?[key]
+        return cachedLocalDictionary(for: SGFallbackLocale)[key]
     }
 
     private func getStringsUrl(for locale: String) -> String {
