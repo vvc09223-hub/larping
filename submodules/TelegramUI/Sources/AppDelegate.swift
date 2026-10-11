@@ -3257,14 +3257,29 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
     
     /// Keep the same data root across launches (App Group vs sandbox fallback must not flip).
+    private func telelarpContainerIsWritable(_ url: URL) -> Bool {
+        let probe = url.appendingPathComponent(".telelarp_write_probe")
+        do {
+            try Data("ok".utf8).write(to: probe, options: .atomic)
+            try? FileManager.default.removeItem(at: probe)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     private func resolveSharedContainerURL(appGroupName: String, preferredGroupUrl: URL?) -> URL? {
         let pinnedKey = "telelarp_pinned_container_path"
         if let pinnedPath = UserDefaults.standard.string(forKey: pinnedKey), !pinnedPath.isEmpty {
             let pinnedUrl = URL(fileURLWithPath: pinnedPath, isDirectory: true)
             var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: pinnedUrl.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            if FileManager.default.fileExists(atPath: pinnedUrl.path, isDirectory: &isDirectory),
+               isDirectory.boolValue,
+               telelarpContainerIsWritable(pinnedUrl) {
                 return pinnedUrl
             }
+            UserDefaults.standard.removeObject(forKey: pinnedKey)
+            Logger.shared.log("App \(self.episodeId)", "Dropped invalid telelarp container pin: \(pinnedPath)")
         }
         if let groupUrl = preferredGroupUrl {
             UserDefaults.standard.set(groupUrl.path, forKey: pinnedKey)

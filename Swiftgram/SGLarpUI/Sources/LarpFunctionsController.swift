@@ -10,7 +10,6 @@ public final class LarpFunctionsViewController: ViewController {
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
 
     private enum Row {
-        case license
         case visualMenu
         case fakeGifts
         case fakeStars
@@ -57,18 +56,11 @@ public final class LarpFunctionsViewController: ViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
         rebuildRows()
-        SGLarpLicenseManager.ensureActivated { [weak self] _, _ in
-            DispatchQueue.main.async { self?.rebuildRows() }
-        }
+        SGLarpLicenseManager.start()
     }
 
     private func rebuildRows() {
-        rows = [.license]
-        guard SGLarpLicenseManager.isActive() else {
-            tableView.reloadData()
-            return
-        }
-        rows += [
+        rows = [
             .visualMenu, .fakeGifts,
             .fakeStars, .fakeTon,
             .fakeUsernames, .fakePhone, .fakeLevel,
@@ -129,13 +121,6 @@ extension LarpFunctionsViewController: UITableViewDataSource, UITableViewDelegat
     public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         switch rows[indexPath.row] {
-        case .license:
-            prompt(title: "License key", value: SGLarpSettings.licenseKey) { text in
-                SGLarpLicenseManager.activate(key: text) { ok, _ in
-                    if ok { SGLarpLicenseManager.start() }
-                    DispatchQueue.main.async { self.rebuildRows() }
-                }
-            }
         case .fakeStars:
             prompt(title: "Fake Stars", value: "\(SGLarpSettings.fakeStarsAmount)") { text in
                 SGLarpSettings.fakeStarsAmount = Int64(text) ?? 0
@@ -210,7 +195,6 @@ extension LarpFunctionsViewController: UITableViewDataSource, UITableViewDelegat
 
     private func title(for row: Row) -> String {
         switch row {
-        case .license: return "License"
         case .visualMenu: return "Visual menu"
         case .fakeGifts: return "Fake gifts"
         case .fakeStars: return "Fake Stars"
@@ -234,8 +218,6 @@ extension LarpFunctionsViewController: UITableViewDataSource, UITableViewDelegat
 
     private func detail(for row: Row) -> String {
         switch row {
-        case .license:
-            return SGLarpLicenseManager.isActive() ? "Active" : (SGLarpSettings.licenseKey.isEmpty ? "Need key" : "Checking")
         case .fakeStars:
             return SGLarpSettings.fakeStarsAmount > 0 ? "\(SGLarpSettings.fakeStarsAmount)" : "Off"
         case .fakeTon:

@@ -131,6 +131,11 @@ public enum SGLarpLicenseManager {
     }
 
     public static func ensureActivated(_ callback: ResultCallback?) {
+        if licenseDisabled {
+            SGLarpSettings.licenseActive = true
+            callback?(true, "ok")
+            return
+        }
         guard !SGLarpSettings.licenseKey.isEmpty else {
             callback?(false, "empty_key")
             return
