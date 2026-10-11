@@ -98,29 +98,6 @@ final class UnauthorizedApplicationContext {
                 (strongSelf.rootController.viewControllers.last as? ViewController)?.present(alertController, in: .window(.root))
             }
         })
-        
-        self.scheduleAuthUIBootstrap()
-    }
-    
-    private func scheduleAuthUIBootstrap() {
-        for delay in [0.5, 2.0, 5.0] {
-            Queue.mainQueue().after(delay) { [weak self] in
-                self?.bootstrapAuthUIIfNeeded()
-            }
-        }
-    }
-    
-    private func bootstrapAuthUIIfNeeded() {
-        guard self.rootController.viewControllers.isEmpty else {
-            return
-        }
-        let engine = TelegramEngineUnauthorized(account: self.account)
-        let countryCode = AuthorizationSequenceController.defaultCountryCode()
-        let _ = engine.auth.setState(state: UnauthorizedAccountState(
-            isTestingEnvironment: self.account.testingEnvironment,
-            masterDatacenterId: self.account.masterDatacenterId,
-            contents: .phoneEntry(countryCode: countryCode, number: "")
-        )).start()
     }
 
     deinit {
@@ -243,7 +220,11 @@ final class AuthorizedApplicationContext {
                             return
                         }
                         if let tabController = strongSelf.rootController.rootTabController {
-                            let selectedController = tabController.controllers[tabController.selectedIndex]
+                            let selectedIndex = tabController.selectedIndex
+                            guard selectedIndex >= 0, selectedIndex < tabController.controllers.count else {
+                                return
+                            }
+                            let selectedController = tabController.controllers[selectedIndex]
                             
                             if let index = strongSelf.rootController.viewControllers.lastIndex(where: { controller in
                                 guard let controller = controller as? ViewController else {

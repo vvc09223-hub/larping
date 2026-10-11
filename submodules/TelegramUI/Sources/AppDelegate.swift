@@ -3332,6 +3332,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
     
     private func bootstrapAuthUIIfNeeded(_ context: UnauthorizedApplicationContext) {
+        guard !context.authorizationCompleted else {
+            return
+        }
         guard context.rootController.viewControllers.isEmpty else {
             return
         }
@@ -3353,6 +3356,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             return true
         }
         if let auth = self.authContextValue,
+           !auth.authorizationCompleted,
            self.mainWindow.viewController === auth.rootController,
            auth.rootController.viewControllers.isEmpty {
             return true
@@ -3362,6 +3366,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     
     private func recoverRootUIIfNeeded() {
         if let auth = self.authContextValue, self.contextValue == nil {
+            if auth.authorizationCompleted {
+                return
+            }
             self.bootstrapAuthUIIfNeeded(auth)
             self.attachRootController(auth.rootController)
             return
