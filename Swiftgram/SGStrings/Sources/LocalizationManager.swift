@@ -23,7 +23,7 @@ public class SGLocalizationManager {
         "sdh": "ku"
     ]
     
-    private init(fetchLocale: String = SGFallbackLocale) {
+    private init() {
         self.appBundle = getAppBundle()
         // Iterating over all the app languages and loading SGLocalizable.strings
         self.appBundle.localizations.forEach { locale in
@@ -31,8 +31,6 @@ public class SGLocalizationManager {
                 localizations[locale] = loadLocalDictionary(for: locale)
             }
         }
-        // Downloading one specific locale
-        self.downloadLocale(fetchLocale)
     }
     
     public func localizedString(_ key: String, _ locale: String = SGFallbackLocale, args: CVarArg...) -> String {
@@ -67,26 +65,49 @@ public class SGLocalizationManager {
     public func downloadLocale(_ locale: String) {
         #if DEBUG
         SGLogger.shared.log("Strings", "DEBUG ignoring locale download: \(locale)")
-        if ({ return true }()) {
-            return
-        }
+        return
         #endif
         let sanitizedLocale = self.sanitizeLocale(locale)
         guard let url = URL(string: self.getStringsUrl(for: sanitizedLocale)) else {
             SGLogger.shared.log("Strings", "Invalid URL for locale: \(sanitizedLocale)")
             return
         }
-        
-        DispatchQueue.global(qos: .background).async {
-            if let localeDict = NSDictionary(contentsOf: url) as? [String: String] {
-                DispatchQueue.main.async {
-                    self.webLocalizations[sanitizedLocale] = localeDict
-                    SGLogger.shared.log("Strings", "Successfully downloaded locale \(sanitizedLocale)")
-                }
-            } else {
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 20
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self else { return }
+            if error != nil {
                 SGLogger.shared.log("Strings", "Failed to download \(sanitizedLocale)")
+                return
             }
+            guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode),
+                  let data, let localeDict = Self.parseStringsPlist(data)
+            else {
+                SGLogger.shared.log("Strings", "Failed to download \(sanitizedLocale)")
+                return
+            }
+            DispatchQueue.main.async {
+                self.webLocalizations[sanitizedLocale] = localeDict
+                SGLogger.shared.log("Strings", "Successfully downloaded locale \(sanitizedLocale)")
+            }
+        }.resume()
+    }
+
+    private static func parseStringsPlist(_ data: Data) -> [String: String]? {
+        guard let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) else {
+            return nil
         }
+        guard let raw = plist as? [String: Any] else { return nil }
+        var result: [String: String] = [:]
+        result.reserveCapacity(raw.count)
+        for (key, value) in raw {
+            guard let stringValue = value as? String else { continue }
+            result[key] = stringValue
+        }
+        return result.isEmpty ? nil : result
     }
     
     private func sanitizeLocale(_ locale: String) -> String {
